@@ -1,6 +1,7 @@
 const RecoveryAction = require('../models/RecoveryAction');
 const Invoice = require('../models/Invoice');
 
+// Créer une action de recouvrement
 const createRecoveryAction = async (req, res) => {
   try {
     const actionData = {
@@ -35,6 +36,7 @@ const createRecoveryAction = async (req, res) => {
   }
 };
 
+// Liste toutes les actions de recouvrement
 const getRecoveryActions = async (req, res) => {
   try {
     const { status, assignedTo, page = 1, limit = 10 } = req.query;
@@ -65,6 +67,67 @@ const getRecoveryActions = async (req, res) => {
   }
 };
 
+// Récupérer une action par ID
+const getRecoveryActionById = async (req, res) => {
+  try {
+    const action = await RecoveryAction.findById(req.params.id)
+      .populate('invoice')
+      .populate('client')
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email');
+
+    if (!action) {
+      return res.status(404).json({ error: 'Action non trouvée' });
+    }
+
+    res.json(action);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Mettre à jour une action
+const updateRecoveryAction = async (req, res) => {
+  try {
+    const action = await RecoveryAction.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!action) {
+      return res.status(404).json({ error: 'Action non trouvée' });
+    }
+
+    res.json({
+      message: 'Action mise à jour avec succès',
+      action
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Supprimer une action
+const deleteRecoveryAction = async (req, res) => {
+  try {
+    const action = await RecoveryAction.findById(req.params.id);
+
+    if (!action) {
+      return res.status(404).json({ error: 'Action non trouvée' });
+    }
+
+    await action.deleteOne();
+
+    res.json({
+      message: 'Action supprimée avec succès'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Marquer une action comme terminée
 const completeAction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -91,6 +154,7 @@ const completeAction = async (req, res) => {
   }
 };
 
+// Statistiques des actions de recouvrement
 const getRecoveryStats = async (req, res) => {
   try {
     const stats = await RecoveryAction.aggregate([
@@ -116,7 +180,7 @@ const getRecoveryStats = async (req, res) => {
       totalActions,
       overdueInvoices,
       recoveryRate: totalActions > 0 
-        ? (stats.find(s => s._id)?.completed / totalActions * 100).toFixed(2) 
+        ? ((stats.find(s => s._id)?.completed / totalActions * 100) || 0).toFixed(2)
         : 0
     });
   } catch (error) {
@@ -124,9 +188,13 @@ const getRecoveryStats = async (req, res) => {
   }
 };
 
+// EXPORTER TOUTES LES FONCTIONS
 module.exports = {
   createRecoveryAction,
   getRecoveryActions,
+  getRecoveryActionById,
+  updateRecoveryAction,
+  deleteRecoveryAction,
   completeAction,
   getRecoveryStats
 };
